@@ -71,7 +71,7 @@ class AddCommentViewModel {
       String formattedDate = DateFormat('dd/MM/yyyy').format(now);
 
       Map<String, dynamic> newComment = {
-        'FullName': user.uid,
+        'FullName': userSnapshot['FullName'],
         'ProfileImageURL': userSnapshot['ProfileImageURL'],
         'comment': commentController.text,
         'image': imageUrl,

@@ -148,7 +148,6 @@ abstract class AppRouterConfig {
                 path: AppRouteList.citiesListPage,
                 builder: (context, state) => CitiesListPage(
                   vm: CityListViewModel(
-                    filterService: AppContainer().filterScope.filterService,
                     settingService: AppContainer().serviceScope.settingsService,
                   ),
                 ),

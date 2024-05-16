@@ -176,6 +176,7 @@ class AuthViewModel {
       UserModel userdb = UserModel(
         fullName: nameRegisterTextCtrl.text.trim(),
         email: emailRegisterTextCtrl.text.trim(),
+        profileImageURL: '',
       );
       userRepository.createUser(uid, userdb);
       User? user = FirebaseAuth.instance.currentUser;

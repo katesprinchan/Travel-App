@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:travel_application/core/domain/intl/generated/l10n.dart';
 import 'package:travel_application/features/cities/presentation/cities_detail_pade.dart';
 import 'package:travel_application/features/cities/presentation/list_page.dart';
@@ -129,7 +130,7 @@ class _DetailPageState extends State<DetailPage>
                         ),
                       ],
                     ),
-                  const SizedBox(height: 10),
+                  const SizedBox(width: 8),
                   if (website.isNotEmpty)
                     InkWell(
                       onTap: () async {
@@ -170,6 +171,8 @@ class _DetailPageState extends State<DetailPage>
         },
       );
   Widget _getComments() {
+    bool commentsLoaded = false;
+
     return FutureBuilder<String>(
       future: getIdPlace(),
       builder: (context, snapshot) {
@@ -195,38 +198,85 @@ class _DetailPageState extends State<DetailPage>
                 var data = snapshot.data!.data();
 
                 if (data == null || data['Comments'] == null) {
-                  return Row(
+                  return Column(
                     children: [
-                      const SizedBox(width: 8),
-                      Icon(Icons.comment,
-                          color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        S.of(context).comments,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const SizedBox(width: 8),
+                          Icon(Icons.comment,
+                              color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            S.of(context).comments,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '(0)',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '($numComments)',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface),
-                      ),
+                      const SizedBox(height: 10),
                     ],
                   );
                 } else {
                   var comments = data['Comments'] as List<dynamic>;
                   numComments = comments.length;
+
+                  commentsLoaded = true;
+
                   return Column(
-                    children: comments.map<Widget>((comment) {
-                      return _buildCommentItem(comment);
-                    }).toList(),
+                    children: [
+                      const SizedBox(height: 10),
+                      if (commentsLoaded)
+                        Row(
+                          children: [
+                            const SizedBox(width: 8),
+                            Icon(Icons.comment,
+                                color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              S.of(context).comments,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '($numComments)',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
+                            ),
+                          ],
+                        ),
+                      if (commentsLoaded)
+                        ...comments.map<Widget>((comment) {
+                          return _buildCommentItem(comment);
+                        }).toList(),
+                    ],
                   );
                 }
               }
@@ -241,42 +291,15 @@ class _DetailPageState extends State<DetailPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const SizedBox(width: 8),
-            Icon(Icons.comment, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(
-              S.of(context).comments,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '($numComments)',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
-            ),
-          ],
-        ),
         ListTile(
           leading: comment['ProfileImageURL'] != null &&
-                  comment['ProfileImageURL'] is String
+                  comment['ProfileImageURL'].isNotEmpty
               ? CircleAvatar(
                   backgroundImage: NetworkImage(comment['ProfileImageURL']),
                 )
-              : CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Theme.of(context).colorScheme.background,
-                  child: Icon(
-                    Icons.account_box_rounded,
-                    size: 90,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+              : const CircleAvatar(
+                  backgroundImage: NetworkImage(
+                      'https://cdn.icon-icons.com/icons2/3066/PNG/512/user_person_profile_avatar_icon_190943.png'),
                 ),
           title: Text(
             comment['FullName'],
@@ -348,6 +371,56 @@ class _DetailPageState extends State<DetailPage>
           }
         },
       );
+  Widget _buildGoogleMap() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection(listName)
+          .where('name', isEqualTo: placeName)
+          .snapshots(),
+      builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Text('Документ не найден');
+        } else {
+          var data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+          GeoPoint? geoPoint = data['map'] as GeoPoint?;
+          if (geoPoint == null) {
+            return const Text('Координаты не найдены');
+          }
+          double latitude = geoPoint.latitude;
+          double longitude = geoPoint.longitude;
+          String selectedLanguage = settingsService.currentLocale.languageCode;
+          var title = '';
+
+          if (selectedLanguage == 'en') {
+            title = data['name_en'] ?? '';
+          } else {
+            title = data['name'] ?? '';
+          }
+
+          return SizedBox(
+            height: 300,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(latitude, longitude),
+                zoom: 15.0,
+              ),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('marker_id'),
+                  position: LatLng(latitude, longitude),
+                  infoWindow: InfoWindow(
+                    title: title,
+                  ),
+                ),
+              },
+            ),
+          );
+        }
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +433,7 @@ class _DetailPageState extends State<DetailPage>
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [_placeInfo(context), _getComments()],
+            children: [_placeInfo(context), _getComments(), _buildGoogleMap()],
           ),
         ),
       ),
